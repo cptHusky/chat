@@ -31,12 +31,7 @@ if __name__ == '__main__':
                 break
             
             out_msg = Message(USERNAME, text)
-            out_msg_pack = out_msg.pack()
-            out_msg_byte = out_msg_pack.encode()
-            sock.sendall(out_msg_byte)
+            out_msg.send(sock)
             print('Message sent!\n')
-
-            inc_msg_byte = sock.recv(1024)
-            inc_msg_pack = inc_msg_byte.decode()
-            inc_msg = Message().unpack(inc_msg_pack)
+            inc_msg = Message().receive(sock)
             output(inc_msg)
