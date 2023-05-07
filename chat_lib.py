@@ -1,5 +1,31 @@
+from abc import ABC, abstractmethod
 import json
 import time
+import socket       # импортировал для аннотации
+
+
+class Protocol(ABC):
+    @abstractmethod
+    def send(self: socket, msg):
+        pass
+
+    @abstractmethod
+    def receive(self: socket):
+        pass
+
+
+class Transport(Protocol):
+    def send(self: socket, msg: str) -> None:
+        msg_to_send = msg.encode()
+        self.sendall(msg_to_send)
+
+    def receive(self: socket) -> str:
+        inc_msg_byte = self.recv(1024)
+        if inc_msg_byte == b'':
+            raise ConnectionAbortedError
+        inc_msg = inc_msg_byte.decode()
+        return inc_msg
+
 
 class Message:
     def __init__(self, username: str = None, text: str = None):
@@ -8,26 +34,13 @@ class Message:
 
     def pack(self) -> str:
         json_msg = json.dumps({
-        "timestamp": int(time.time() * 1000),
-        "username": self.username,
-        "text": self.text,
+            "timestamp": int(time.time() * 1000),
+            "username": self.username,
+            "text": self.text,
         })
         return json_msg
-    
-    def unpack(self, msg: str) -> dict:
+
+    @staticmethod
+    def unpack(msg: str) -> dict:
         parsed_msg = json.loads(msg)
         return parsed_msg
-    
-    def receive(self, sock):
-        inc_msg_byte = sock.recv(1024)
-        if  inc_msg_byte == b'':
-            raise ConnectionAbortedError
-#? Взял ошибку из уже хэндлящихся, не искал правильную
-        inc_msg_pack = inc_msg_byte.decode()
-        inc_msg = self.unpack(inc_msg_pack)
-        return inc_msg
-    
-    def send(self, sock):
-        out_msg_pack = self.pack()
-        out_msg_byte = out_msg_pack.encode()
-        sock.sendall(out_msg_byte)

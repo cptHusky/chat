@@ -1,5 +1,5 @@
 import socket
-from chat_lib import Message
+from chat_lib import Message, Transport
 
 HOST = '127.0.0.1'
 PORT = 55555
@@ -25,12 +25,13 @@ if __name__ == '__main__':
 
             while True:
                 try:
-                    inc_msg = Message().receive(connection)
+                    inc_str = Transport.receive(connection)
                 except CONNECTION_ERRORS:
                     print(f'{inc_addr}:{inc_port} has disconnected.')
                     break
+                inc_msg = Message().unpack(inc_str)
                 print(f'Message received:\n{inc_msg}')
-
+                
                 username, text = inc_msg['username'], inc_msg['text']
-                out_msg = Message(username, text)
-                out_msg.send(connection)
+                out_str = Message(username, text).pack()
+                Transport.send(connection, out_str)

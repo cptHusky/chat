@@ -1,9 +1,10 @@
 import socket
-from chat_lib import Message
+from chat_lib import Message, Transport
 
 HOST = '127.0.0.1'
 PORT = 55555
 USERNAME = 'cptHusky'
+
 
 def output(msg: dict) -> None:
     print('Message received:')
@@ -21,17 +22,19 @@ def output(msg: dict) -> None:
 
 
 if __name__ == '__main__':
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((HOST, PORT))
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
+        connection.connect((HOST, PORT))
         print(f'Connected to {HOST}:{PORT}')
 
         while True:
-            text = input('Input your message or type "quit":\n')
-            if text == 'quit':
+            out_text = input('Input your message or type "quit":\n')
+            if out_text == 'quit':
                 break
             
-            out_msg = Message(USERNAME, text)
-            out_msg.send(sock)
+            out_str = Message(USERNAME, out_text).pack()
+            Transport.send(connection, out_str)
             print('Message sent!\n')
-            inc_msg = Message().receive(sock)
+
+            inc_str = Transport.receive(connection)
+            inc_msg = Message().unpack(inc_str)
             output(inc_msg)
