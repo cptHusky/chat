@@ -6,11 +6,11 @@ import socket       # импортировал для аннотации
 
 class Protocol(ABC):
     @abstractmethod
-    def send(self: socket, msg):
+    def send(self: socket, msg) -> None:
         pass
 
     @abstractmethod
-    def receive(self: socket):
+    def receive(self: socket) -> str:
         pass
 
 
