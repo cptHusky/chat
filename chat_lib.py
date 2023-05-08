@@ -23,6 +23,7 @@ class Transport(Protocol):
         inc_msg_byte = self.recv(1024)
         if inc_msg_byte == b'':
             raise ConnectionAbortedError
+        
         inc_msg = inc_msg_byte.decode()
         return inc_msg
 
