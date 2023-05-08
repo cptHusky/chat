@@ -17,16 +17,13 @@ class Protocol(ABC):
 class Transport(Protocol):
     def send(self: socket, msg: str) -> None:
         msg_to_send = msg.encode()
-        # print(f'{type(self)=}')
-        # print(f'{self=}')
-        # try:
         self.sendall(msg_to_send)
-        # except:
 
     def receive(self: socket) -> str:
         inc_msg_byte = self.recv(1024)
         if inc_msg_byte == b'':
             raise ConnectionAbortedError
+        
         inc_msg = inc_msg_byte.decode()
         return inc_msg
 

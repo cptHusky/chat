@@ -20,30 +20,22 @@ def handle_single_client(connection, address):
             inc_str = Transport.receive(connection)
             inc_msg = Message().unpack(inc_str)
             print(f'[MSG_RECV] Message received:\n{inc_msg}')
+
             username, text = inc_msg['username'], inc_msg['text']
             out_str = Message(username, text).pack()
+
             print(f'[MSG_SEND] Message ({out_str}) is being sent to:')
             for con in CONNECTIONS_LIST:
                 Transport.send(con, out_str)
                 print(con)
+
             print('[MSG_SEND] Sending end.')
+            
         except CONNECTION_ERRORS:
             print(f'[CON_DISC] {inc_addr}:{inc_port} has disconnected.')
             CONNECTIONS_LIST.remove(connection)
             print(f'[CON_STAT] Active connections: {active_count() - 1}')
             break
-
-    #     username, text = inc_msg['username'], inc_msg['text']
-    #     out_str = Message(username, text).pack()
-    #     print(f'Message ({out_str}) is being sent to:')
-    #     for con in CONNECTIONS_LIST:
-    #         # try:
-    #         Transport.send(con, out_str)
-    #         print(con)
-            
-    #     print('Sending end.')
-    # print(f'{inc_addr}:{inc_port} has disconnected.')
-
 
 
 if __name__ == '__main__':

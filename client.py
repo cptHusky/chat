@@ -43,6 +43,7 @@ def receive_message(connection: socket.socket) -> None:
             inc_str = Transport.receive(connection)
         except DISCONNECT_ERRORS:
             break
+
         inc_msg = Message().unpack(inc_str)
         output(inc_msg)
 
