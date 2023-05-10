@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 import json
 import time
-import socket       # импортировал для аннотации
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    import socket
 
 
 class Protocol(ABC):
