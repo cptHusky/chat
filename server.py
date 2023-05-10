@@ -11,7 +11,7 @@ CONNECTION_ERRORS = (
 )
 CONNECTIONS_LIST = []
 
-def handle_single_client(connection, address):
+def handle_single_client(connection: socket, address: tuple) -> None:
     inc_addr, inc_port = address
     print(f'[CON_ACPT] Connection accepted from {inc_addr}:{inc_port}')
 
@@ -30,7 +30,7 @@ def handle_single_client(connection, address):
                 print(con)
 
             print('[MSG_SEND] Sending end.')
-            
+
         except CONNECTION_ERRORS:
             print(f'[CON_DISC] {inc_addr}:{inc_port} has disconnected.')
             CONNECTIONS_LIST.remove(connection)
