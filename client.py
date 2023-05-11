@@ -22,26 +22,26 @@ class Client(Transport):
             send_thread.join()
             recv_thread.join()
 
-    def output(self, msg: dict) -> None:
-        print('Message received:')
-        for key, value in msg.items():
-            match key:
-                case 'timestamp':
-                    print(f'Time sent: {value}')
-                case 'username':
-                    print(f'Sender: {value}')
-                case 'text':
-                    print(f'Message:\n{value}')
-                case _:
-                    print(f'{key}: {value}')
-        print()
+    # def output(self, msg: dict) -> None:
+    #     print('Message received:')
+    #     for key, value in msg.items():
+    #         match key:
+    #             case 'timestamp':
+    #                 print(f'Time sent: {value}')
+    #             case 'username':
+    #                 print(f'Sender: {value}')
+    #             case 'text':
+    #                 print(f'Message:\n{value}')
+    #             case _:
+    #                 print(f'{key}: {value}')
+    #     print()
 
 
     def send_message(self, connection: socket.socket) -> None:
         while True:
             out_text = input('Input your message or type "quit":\n')
             if out_text == '':
-                print('Can not send empty bmessages!')
+                print('Can not send empty messages!')
                 continue
             if out_text == 'quit':
                 connection.close()
@@ -60,7 +60,7 @@ class Client(Transport):
                 break
 
             inc_msg = Message().unpack(inc_str)
-            self.output(inc_msg)
+            print(inc_msg)
 
 
 if __name__ == '__main__':

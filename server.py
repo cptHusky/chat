@@ -25,7 +25,7 @@ class Server(Transport):
                 inc_msg = Message().unpack(inc_str)
                 print(f'[MSG_RECV] Message received:\n{inc_msg}')
 
-                username, text = inc_msg['username'], inc_msg['text']
+                username, text = inc_msg.username, inc_msg.text
                 out_str = Message(username, text).pack()
 
                 print(f'[MSG_SEND] Message ({out_str}) is being sent to:')
@@ -38,7 +38,7 @@ class Server(Transport):
             except CONNECTION_ERRORS:
                 print(f'[CON_DISC] {inc_addr}:{inc_port} has disconnected.')
                 self.connections.remove(connection)
-                print(f'[CON_STAT] Active connections: {active_count() - 1}')
+                print(f'[CON_STAT] Active connections: {active_count() - 2}')
                 break
 
     def start(self):
