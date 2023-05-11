@@ -10,10 +10,9 @@ CONNECTION_ERRORS = (
 HOST = '127.0.0.1'
 PORT = 55555
 
-class Server:
+class Server(Transport):
     def __init__(self, host, port):
-        self.host = host
-        self.port = port
+        super().__init__(host, port)
         self.connections = []
 
     def handle_single_client(self, connection, address):

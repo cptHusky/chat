@@ -15,6 +15,10 @@ class Protocol(ABC):
 
 
 class Transport(Protocol):
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+
     def send(self: socket, msg: str) -> None:
         msg_to_send = msg.encode()
         self.sendall(msg_to_send)

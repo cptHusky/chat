@@ -9,18 +9,14 @@ USERNAME = 'anon'
 
 DISCONNECT_ERRORS = (ConnectionAbortedError, OSError)
 
-class Client():
-    def __init__(self, host, port):
-        self.host = host
-        self.port = port
-
+class Client(Transport):
     def start(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
             connection.connect((HOST, PORT))
             print(f'Connected to {HOST}:{PORT}')
             print(connection)
-            send_thread = Thread(target=self.send_message, args=(connection, ))
-            recv_thread = Thread(target=self.receive_message, args=(connection, ))
+            send_thread = Thread(target=self.send_message, args=(connection,))
+            recv_thread = Thread(target=self.receive_message, args=(connection,))
             send_thread.start()
             recv_thread.start()
             send_thread.join()
@@ -44,6 +40,9 @@ class Client():
     def send_message(self, connection: socket.socket) -> None:
         while True:
             out_text = input('Input your message or type "quit":\n')
+            if out_text == '':
+                print('Can not send empty bmessages!')
+                continue
             if out_text == 'quit':
                 connection.close()
                 raise SystemExit(0)
