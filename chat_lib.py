@@ -19,12 +19,12 @@ class Transport(Protocol):
         self.host = host
         self.port = port
 
-    def send(self: socket, msg: str) -> None:
+    def send(self, connection: socket, msg: str) -> None:
         msg_to_send = msg.encode()
-        self.sendall(msg_to_send)
+        connection.sendall(msg_to_send)
 
-    def receive(self: socket) -> str:
-        inc_msg_byte = self.recv(1024)
+    def receive(self, connection: socket) -> str:
+        inc_msg_byte = connection.recv(1024)
         if inc_msg_byte == b'':
             raise ConnectionAbortedError
         

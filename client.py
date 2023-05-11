@@ -48,14 +48,14 @@ class Client(Transport):
                 raise SystemExit(0)
 
             out_str = Message(USERNAME, out_text).pack()
-            Transport.send(connection, out_str)
+            self.send(connection, out_str)
             print('Message sent!\n')
 
 
     def receive_message(self, connection: socket.socket) -> None:
         while True:
             try:
-                inc_str = Transport.receive(connection)
+                inc_str = self.receive(connection)
             except DISCONNECT_ERRORS:
                 break
 

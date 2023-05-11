@@ -21,7 +21,7 @@ class Server(Transport):
 
         while connection:
             try:
-                inc_str = Transport.receive(connection)
+                inc_str = self.receive(connection)
                 inc_msg = Message().unpack(inc_str)
                 print(f'[MSG_RECV] Message received:\n{inc_msg}')
 
@@ -30,7 +30,7 @@ class Server(Transport):
 
                 print(f'[MSG_SEND] Message ({out_str}) is being sent to:')
                 for con in self.connections:
-                    Transport.send(con, out_str)
+                    self.send(con, out_str)
                     print(con)
 
                 print('[MSG_SEND] Sending end.')
