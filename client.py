@@ -1,4 +1,5 @@
 import asyncio
+import aioconsole
 import socket
 from chat_lib import Message, AIOTransport
 
@@ -20,7 +21,7 @@ class Client(AIOTransport):
 
     async def send_message(self, connection: socket.socket) -> None:
         while True:
-            out_text = input('Input your message or type "quit":\n')
+            out_text = await aioconsole.ainput('Input your message or type "quit":\n')
             if out_text == '':
                 print('Can not send empty messages!')
                 continue
@@ -29,16 +30,14 @@ class Client(AIOTransport):
                 raise SystemExit(0)
 
             out_str = Message(USERNAME, out_text).pack()
-            # print(f'{connection=}')
-            await self.send(connection, out_str)
+            await self.send_async(connection, out_str)
             print('Message sent!\n')
 
 
     async def receive_message(self, connection: socket.socket) -> None:
-        print('RECEIVING')
         while True:
             try:
-                inc_str = await self.receive(connection)
+                inc_str = await self.receive_async(connection)
             except DISCONNECT_ERRORS:
                 break
 
@@ -47,6 +46,11 @@ class Client(AIOTransport):
 
 
 if __name__ == '__main__':
-    USERNAME = input('Set username before connection:\n')
+    while True:
+        USERNAME = input('Set username before connection:\n')
+        if not USERNAME:
+            continue
+        else:
+            break
     client = Client(HOST, PORT)
     asyncio.run(client.start())

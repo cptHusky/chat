@@ -18,7 +18,6 @@ class Protocol(ABC):
 
 class Transport(Protocol):
     def __init__(self, host, port):
-        print('lalallala')
         self.host = host
         self.port = port
 
@@ -35,13 +34,12 @@ class Transport(Protocol):
         return inc_msg
 
 class AIOTransport(Transport):
-    async def send(self, connection: asyncio.StreamWriter, msg: str) -> None:
+    async def send_async(self, connection: asyncio.StreamWriter, msg: str) -> None:
         msg_to_send = msg.encode()
         connection.write(msg_to_send)
         await connection.drain()
 
-    async def receive(self, connection: asyncio.StreamReader) -> str:
-        print('SSSSS')
+    async def receive_async(self, connection: asyncio.StreamReader) -> str:
         inc_msg_byte = await connection.read(1024)
         if inc_msg_byte == b'':
             raise ConnectionAbortedError
