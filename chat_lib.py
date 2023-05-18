@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import asyncio
 import datetime
 import json
 import time
@@ -17,6 +18,7 @@ class Protocol(ABC):
 
 class Transport(Protocol):
     def __init__(self, host, port):
+        print('lalallala')
         self.host = host
         self.port = port
 
@@ -32,6 +34,20 @@ class Transport(Protocol):
         inc_msg = inc_msg_byte.decode()
         return inc_msg
 
+class AIOTransport(Transport):
+    async def send(self, connection: asyncio.StreamWriter, msg: str) -> None:
+        msg_to_send = msg.encode()
+        connection.write(msg_to_send)
+        await connection.drain()
+
+    async def receive(self, connection: asyncio.StreamReader) -> str:
+        print('SSSSS')
+        inc_msg_byte = await connection.read(1024)
+        if inc_msg_byte == b'':
+            raise ConnectionAbortedError
+        
+        inc_msg = inc_msg_byte.decode()
+        return inc_msg
 
 class Message:
     def __init__(self, username: str = None, text: str = None):
