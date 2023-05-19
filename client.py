@@ -1,6 +1,7 @@
 import asyncio
 import aioconsole
 import socket
+import sys
 from chat_lib import Message, AIOTransport
 
 
@@ -15,8 +16,11 @@ class Client(AIOTransport):
     async def start(self):
         reader, writer = await asyncio.open_connection(HOST, PORT)
         receive_task = asyncio.create_task(self.receive_message(reader))
-        send_task = asyncio.create_task(self.send_message(writer))
-        await asyncio.gather(receive_task, send_task)
+        try:
+            send_task = asyncio.create_task(self.send_message(writer))
+            await asyncio.gather(receive_task, send_task)
+        except SystemExit:
+            print('Disconnected!')            
 
 
     async def send_message(self, connection: socket.socket) -> None:
@@ -27,7 +31,7 @@ class Client(AIOTransport):
                 continue
             if out_text == 'quit':
                 connection.close()
-                raise SystemExit(0)
+                sys.exit()
 
             out_str = Message(USERNAME, out_text).pack()
             await self.send_async(connection, out_str)
