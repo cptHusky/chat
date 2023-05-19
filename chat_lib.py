@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import asyncio
 import datetime
 import json
 import time
@@ -32,6 +33,19 @@ class Transport(Protocol):
         inc_msg = inc_msg_byte.decode()
         return inc_msg
 
+class AIOTransport(Transport):
+    async def send_async(self, connection: asyncio.StreamWriter, msg: str) -> None:
+        msg_to_send = msg.encode()
+        connection.write(msg_to_send)
+        await connection.drain()
+
+    async def receive_async(self, connection: asyncio.StreamReader) -> str:
+        inc_msg_byte = await connection.read(1024)
+        if inc_msg_byte == b'':
+            raise ConnectionAbortedError
+        
+        inc_msg = inc_msg_byte.decode()
+        return inc_msg
 
 class Message:
     def __init__(self, username: str = None, text: str = None):
@@ -42,9 +56,9 @@ class Message:
     def __str__(self):
         no_format_time = datetime.datetime.fromtimestamp(self.timestamp)
         human_time = no_format_time.strftime('%Y-%m-%d %H:%M:%S')
-        bold_username = ''.join(('\033[1m', self.username, '\033[0m'))
+        bold_username = ''.join(('\033[1m ', self.username, ' \033[0m'))
 # воспользовался решением через ANSI, не работает в cmd под win10, в терминале питона жирнеет
-        to_print = f'[{human_time}]{bold_username}:{self.text}'
+        to_print = f'[{human_time}]{bold_username}sent: {self.text}'
         return to_print
 
     def pack(self) -> str:
