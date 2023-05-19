@@ -1,6 +1,5 @@
-import socket
-from threading import Thread, active_count
-from chat_lib import Message, Transport
+import asyncio
+from chat_lib import Message, AIOTransport
 
 CONNECTION_ERRORS = (
     ConnectionAbortedError,
@@ -10,50 +9,56 @@ CONNECTION_ERRORS = (
 HOST = '127.0.0.1'
 PORT = 55555
 
-class Server(Transport):
+
+class Server(AIOTransport):
     def __init__(self, host, port):
         super().__init__(host, port)
-        self.connections = []
+        self.connections = {}
 
-    def handle_single_client(self, connection, address):
-        inc_addr, inc_port = address
-        print(f'[CON_ACPT] Connection accepted from {inc_addr}:{inc_port}')
 
-        while connection:
+    async def handle_single_client(self, reader, writer):
+        connection_id = len(self.connections)
+        self.connections[connection_id] = writer
+        number_active_connections = len([value for value in self.connections.values() if value is not None])
+        print(f'[CON_STAT] Active connections: {number_active_connections}\nConnections list:')
+        for id in self.connections:
+            if self.connections[id] is not None:
+                client_host, client_port = self.connections[id].get_extra_info('peername')
+                print(f'ID: {id:3} {client_host:20}:{client_port}')
+
+        while True:
             try:
-                inc_str = self.receive(connection)
+                inc_str = await self.receive_async(reader)
                 inc_msg = Message().unpack(inc_str)
                 print(f'[MSG_RECV] Message received:\n{inc_msg}')
 
                 username, text = inc_msg.username, inc_msg.text
                 out_str = Message(username, text).pack()
 
-                print(f'[MSG_SEND] Message ({out_str}) is being sent to:')
-                for con in self.connections:
-                    self.send(con, out_str)
-                    print(con)
+                print(f'[MSG_SEND] Message ({out_str}) is being sent to IDs:')
+                for id in self.connections:
+                    if self.connections[id] is not None:
+                        await self.send_async(self.connections[id], out_str)
+                        print(f'{id}, ', end='')
+                print()
 
                 print('[MSG_SEND] Sending end.')
 
             except CONNECTION_ERRORS:
-                print(f'[CON_DISC] {inc_addr}:{inc_port} has disconnected.')
-                self.connections.remove(connection)
-                print(f'[CON_STAT] Active connections: {active_count() - 2}')
+                self.connections[connection_id] = None
+                number_active_connections = len([value for value in self.connections.values() if value is not None])
+                print(f'[CON_STAT] Active connections: {number_active_connections}')
                 break
 
-    def start(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.bind((self.host, self.port))
-            sock.listen()
-            print(f'[SRV_STAT] Server started at {self.host}:{self.port}')
 
-            while True:
-                connection, address = sock.accept()
-                self.connections.append(connection)
-                thread = Thread(target=self.handle_single_client, args=(connection, address))
-                thread.start()
-                print(f'[CON_STAT] Active connections: {active_count() - 1}')
+    async def start(self):
+        server = await asyncio.start_server(self.handle_single_client, self.host, self.port)
+        print(f'[SRV_STAT] Server started at {self.host}:{self.port}')
+        
+        async with server:
+            await server.serve_forever()
+
 
 if __name__ == '__main__':
     server = Server(HOST, PORT)
-    server.start()
+    asyncio.run(server.start())
