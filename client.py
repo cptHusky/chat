@@ -1,5 +1,6 @@
 import asyncio
 import aioconsole
+import curses
 import socket
 import sys
 from chat_lib import Message, AIOTransport
@@ -12,8 +13,23 @@ USERNAME = 'anon'
 
 DISCONNECT_ERRORS = (ConnectionAbortedError, OSError)
 
-class Client(AIOTransport):
+class Interface:
+    def create_windows(self):
+        stdscr = curses.initscr()
+        curses.echo()
+        stdscr.nodelay(True)
+        self.heigth, self.length = stdscr.getmaxyx()
+        self.send_window_height = 6
+        self.receive_window_heigth = self.heigth - self.send_window_height
+        self.receive_window = curses.newwin(self.receive_window_heigth, self.length, 0, 0)
+        self.send_window = curses.newwin(self.send_window_height , self.length, self.receive_window_heigth, 0)
+        self.receive_window.border()
+        self.send_window.border()
+
+
+class Client(Interface, AIOTransport):
     async def start(self):
+        self.create_windows()
         reader, writer = await asyncio.open_connection(HOST, PORT)
         receive_task = asyncio.create_task(self.receive_message(reader))
         try:
@@ -25,17 +41,24 @@ class Client(AIOTransport):
 
     async def send_message(self, connection: socket.socket) -> None:
         while True:
-            out_text = await aioconsole.ainput('Input your message or type "quit":\n')
+            out_text = await asyncio.to_thread(self.input_message)
             if out_text == '':
-                print('Can not send empty messages!')
+                self.send_window.addstr(3, 1, 'Can not send empty messages!')
                 continue
             if out_text == 'quit':
                 connection.close()
-                sys.exit()
 
             out_str = Message(USERNAME, out_text).pack()
             await self.send_async(connection, out_str)
-            print('Message sent!\n')
+            self.send_window.clear()
+            self.send_window.border()
+            self.send_window.addstr(3, 1, 'Message sent!')
+
+    def input_message(self):
+        self.send_window.addstr(1, 1, 'Input your message or type "quit":')
+        # text = await asyncio.to_thread(self.send_window.getstr)
+        text = self.send_window.getstr(2, 1)
+        return str(text)[2:-1]
 
 
     async def receive_message(self, connection: socket.socket) -> None:
@@ -46,7 +69,10 @@ class Client(AIOTransport):
                 break
 
             inc_msg = Message().unpack(inc_str)
-            print(inc_msg)
+            self.receive_window.clear()
+            self.receive_window.border()
+            self.receive_window.addstr(1, 1, str(inc_msg))
+            self.receive_window.refresh()
 
 
 if __name__ == '__main__':
