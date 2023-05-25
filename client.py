@@ -2,16 +2,9 @@ import asyncio
 import curses
 from chat_lib import Message, AIOTransport
 
-import locale
 
-# Установка локали и кодировки
-locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
-
-
-EXIT_TEXT = 'Disconnected from server, press ENTER to close.\n'
 HOST = '127.0.0.1'
 PORT = 55555
-USERNAME = 'anon'
 
 DISCONNECT_ERRORS = (ConnectionAbortedError, OSError)
 
