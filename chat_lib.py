@@ -7,8 +7,9 @@ import socket
 
 
 class Protocol(ABC):
+
     @abstractmethod
-    def send(self: socket, msg) -> None:
+    def send(self: socket, msg: str) -> None:
         pass
 
     @abstractmethod
@@ -17,6 +18,7 @@ class Protocol(ABC):
 
 
 class Transport(Protocol):
+
     def __init__(self, host, port):
         self.host = host
         self.port = port
@@ -27,11 +29,13 @@ class Transport(Protocol):
 
     def receive(self, connection: socket) -> str:
         inc_msg_byte = connection.recv(1024)
+
         if inc_msg_byte == b'':
             raise ConnectionAbortedError
-        
+
         inc_msg = inc_msg_byte.decode()
         return inc_msg
+
 
 class AIOTransport(Transport):
     async def send_async(self, connection: asyncio.StreamWriter, msg: str) -> None:
@@ -43,22 +47,19 @@ class AIOTransport(Transport):
         inc_msg_byte = await connection.read(1024)
         if inc_msg_byte == b'':
             raise ConnectionAbortedError
-        
         inc_msg = inc_msg_byte.decode()
         return inc_msg
 
 class Message:
-    def __init__(self, username: str = None, text: str = None):
+    def __init__(self, username: str = None, text: str = None) -> None:
         self.text = text
         self.username = username
         self.timestamp = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         no_format_time = datetime.datetime.fromtimestamp(self.timestamp)
         human_time = no_format_time.strftime('%Y-%m-%d %H:%M:%S')
-        bold_username = ''.join(('\033[1m ', self.username, ' \033[0m'))
-# воспользовался решением через ANSI, не работает в cmd под win10, в терминале питона жирнеет
-        to_print = f'[{human_time}]{bold_username}sent: {self.text}'
+        to_print = f'[{human_time}] {self.username} sent: {self.text}'
         return to_print
 
     def pack(self) -> str:
