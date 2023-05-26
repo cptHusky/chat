@@ -62,6 +62,20 @@ class Interface:
     def input_decor(self):
         ...
 
+    def input_result_print(self, condition: str) -> None:
+        self.send_window.clear()
+
+        match condition:
+
+            case 'success':
+                self.send_window.addstr(3, 1, 'Message sent!')
+
+            case 'empty':
+                self.send_window.addstr(3, 1, 'Can not send empty messages!')
+
+        self.send_window.border()
+        self.send_window.refresh()
+
 
 class Client(Interface, AIOTransport):
 
@@ -83,7 +97,7 @@ class Client(Interface, AIOTransport):
             out_text = await asyncio.to_thread(self.input_message)
 
             if out_text == '':
-                self.send_window.addstr(3, 1, 'Can not send empty messages!')
+                self.input_result_print('empty')
                 continue
 
             if out_text == 'quit':
@@ -91,10 +105,7 @@ class Client(Interface, AIOTransport):
 
             out_str = Message(USERNAME, out_text).pack()
             await self.send_async(connection, out_str)
-
-            self.send_window.clear()
-            self.send_window.border()
-            self.send_window.addstr(3, 1, 'Message sent!')
+            self.input_result_print('success')
 
     async def receive_message(self, connection: asyncio.StreamReader) -> None:
         while True:
