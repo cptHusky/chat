@@ -59,9 +59,6 @@ class Interface:
         text = self.send_window.getstr(2, 1)
         return str(text)[2:-1]
 
-    def input_decor(self):
-        ...
-
     def input_result_print(self, condition: str) -> None:
         self.send_window.clear()
 
