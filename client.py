@@ -1,7 +1,8 @@
 import asyncio
 import curses
-from chat_lib import Message, AIOTransport
+from chat_lib import Message, AIOTransport, Sec
 
+from cryptography.hazmat.primitives import serialization
 
 HOST = '127.0.0.1'
 PORT = 55555
@@ -70,16 +71,23 @@ class Interface:
             case 'empty':
                 self.send_window.addstr(3, 1, 'Can not send empty messages!')
 
+            case 'login_ok':
+                self.send_window.addstr(3, 1, 'Logged in!')
+
+            case _:
+                self.send_window.addstr(3, 1, condition)
+
         self.send_window.border()
         self.send_window.refresh()
 
 
-class Client(Interface, AIOTransport):
+class Client(Interface, AIOTransport, Sec):
 
     async def start(self) -> None:
+        self.private_key, self.public_key = Sec.generate_keys()
         self.init_interface()
-
         reader, writer = await asyncio.open_connection(HOST, PORT)
+        await self.send_login(writer)
 
         try:
             receive_task = asyncio.create_task(self.receive_message(reader))
@@ -100,7 +108,7 @@ class Client(Interface, AIOTransport):
             if out_text == 'quit':
                 connection.close()
 
-            out_str = Message(USERNAME, out_text).pack()
+            out_str = Message(USERNAME, out_text, self.private_key).pack()
             await self.send_async(connection, out_str)
             self.input_result_print('success')
 
@@ -116,6 +124,16 @@ class Client(Interface, AIOTransport):
             inc_msg = Message().unpack(inc_str)
 
             self.print_inc_msg_and_roll(str(inc_msg))
+
+    async def send_login(self, connection: asyncio.StreamWriter):
+        public_key_bytes = self.public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        public_key_str = public_key_bytes.decode()
+        login_str = Message(USERNAME, public_key_str, self.private_key).pack()
+        await self.send_async(connection, login_str)
+        self.input_result_print('login_ok')
 
 
 if __name__ == '__main__':

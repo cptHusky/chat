@@ -5,6 +5,10 @@ import json
 import time
 import socket
 
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric import rsa
+
 
 class Protocol(ABC):
 
@@ -44,17 +48,31 @@ class AIOTransport(Transport):
         await connection.drain()
 
     async def receive_async(self, connection: asyncio.StreamReader) -> str:
-        inc_msg_byte = await connection.read(1024)
+        inc_msg_byte = await connection.read(2048)
         if inc_msg_byte == b'':
             raise ConnectionAbortedError
         inc_msg = inc_msg_byte.decode()
         return inc_msg
 
+
+class Sec:
+    @staticmethod
+    def generate_keys():
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048
+        )
+        public_key = private_key.public_key()
+
+        return private_key, public_key
+
 class Message:
-    def __init__(self, username: str = None, text: str = None) -> None:
+    def __init__(self, username: str = None, text: str = None, private_key=None) -> None:
         self.text = text
         self.username = username
         self.timestamp = None
+        if private_key:
+            self.signature: str = self.get_signature(text, private_key)
 
     def __str__(self) -> str:
         no_format_time = datetime.datetime.fromtimestamp(self.timestamp)
@@ -63,16 +81,42 @@ class Message:
         return to_print
 
     def pack(self) -> str:
-        json_msg = json.dumps({
-            "timestamp": int(time.time()),
-            "username": self.username,
-            "text": self.text,
-        })
+        try:
+            json_msg = json.dumps({
+                "timestamp": int(time.time()),
+                "username": self.username,
+                "text": self.text,
+                "signature": self.signature,
+            })
+        except AttributeError:
+            json_msg = json.dumps({
+                "timestamp": int(time.time()),
+                "username": self.username,
+                "text": self.text,
+                "signature": 'Server',
+            })
         return json_msg
+
+    def get_signature(self, text, private_key) -> str:
+        text_byted = text.encode()
+        signature = private_key.sign(
+            text_byted,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+        signature_str = str(signature)[2:-1]
+        return signature_str
 
     @staticmethod
     def unpack(msg: str) -> 'Message':
+        print(msg)
         parsed_msg_dict = json.loads(msg)
-        parsed_msg = Message(parsed_msg_dict['username'], parsed_msg_dict['text'])
+        parsed_msg = Message()
+        parsed_msg.text = parsed_msg_dict['text']
+        parsed_msg.username = parsed_msg_dict['username']
         parsed_msg.timestamp = parsed_msg_dict['timestamp']
+        parsed_msg.signature = parsed_msg_dict['signature']
         return parsed_msg
