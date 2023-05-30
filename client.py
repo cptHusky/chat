@@ -1,6 +1,9 @@
 import asyncio
 import curses
+import os
+import sys
 from chat_lib import Message, AIOTransport, Sec
+import datetime
 
 from cryptography.hazmat.primitives import serialization
 
@@ -8,6 +11,24 @@ HOST = '127.0.0.1'
 PORT = 55555
 
 DISCONNECT_ERRORS = (ConnectionAbortedError, OSError)
+
+class Logger:
+    def __init__(self, file):
+        self.file = file
+
+    def write(self, log):
+        event_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        max_file_size = 128 * 1024 * 1024  # 128 mb in bytes
+        if os.path.exists(self.file) and os.path.getsize(self.file) > max_file_size:
+            file_name, file_extension = os.path.splitext(self.file)
+            file_number = 1
+            while os.path.exists(f"{file_name}_{file_number}{file_extension}"):
+                file_number += 1
+            new_file = f"{file_name}_{file_number}{file_extension}"
+            self.file = new_file
+
+        with open(self.file, 'a') as f:
+            f.write(f'[{event_time}] {log}\n')
 
 
 class Interface:
@@ -81,9 +102,14 @@ class Interface:
         self.send_window.refresh()
 
 
-class Client(Interface, AIOTransport, Sec):
+class Client(Interface, AIOTransport):
 
     async def start(self) -> None:
+        current_directory = os.getcwd()
+        filename = 'client.log'
+        logfile = os.path.join(current_directory, filename)
+        self.logger = Logger(logfile)
+        self.logger.write('START')
         self.private_key, self.public_key = Sec.generate_keys()
         self.init_interface()
         reader, writer = await asyncio.open_connection(HOST, PORT)
