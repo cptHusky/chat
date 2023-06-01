@@ -4,11 +4,31 @@ import datetime
 import json
 import time
 import socket
+import os
+import datetime
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+
+class Logger:
+    def __init__(self, file):
+        self.file = file
+
+    def write(self, log):
+        event_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        max_file_size = 128 * 1024 * 1024  # 128 mb in bytes
+        if os.path.exists(self.file) and os.path.getsize(self.file) > max_file_size:
+            file_name, file_extension = os.path.splitext(self.file)
+            file_number = 1
+            while os.path.exists(f"{file_name}_{file_number}{file_extension}"):
+                file_number += 1
+            new_file = f"{file_name}_{file_number}{file_extension}"
+            self.file = new_file
+
+        with open(self.file, 'a') as f:
+            f.write(f'[{event_time}] {log}\n')
 
 class Protocol(ABC):
 
@@ -99,6 +119,7 @@ class Message:
 
     def get_signature(self, text, private_key) -> str:
         text_byted = text.encode()
+        print(f'{text_byted=}')
         signature = private_key.sign(
             text_byted,
             padding.PSS(
@@ -107,12 +128,13 @@ class Message:
             ),
             hashes.SHA256()
         )
+        print(f'Signature {type(signature)}: {signature}\n')
         signature_str = str(signature)[2:-1]
         return signature_str
 
     @staticmethod
     def unpack(msg: str) -> 'Message':
-        print(msg)
+        # print(msg)
         parsed_msg_dict = json.loads(msg)
         parsed_msg = Message()
         parsed_msg.text = parsed_msg_dict['text']
