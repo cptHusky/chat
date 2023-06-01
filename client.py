@@ -19,11 +19,11 @@ class Interface:
 
         self.heigth, self.length = stdscr.getmaxyx()
         self.send_window_height = 6
-        self.receive_window_heigth = self.heigth - self.send_window_height
+        self.receive_window_heigth = self.heigth - self.send_window_height - 1
 
         self.greet_bar = curses.newwin(1, self.length, 0, 0)
         self.receive_window = curses.newwin(self.receive_window_heigth, self.length, 1, 0)
-        self.send_window = curses.newwin(self.send_window_height, self.length, self.receive_window_heigth, 0)
+        self.send_window = curses.newwin(self.send_window_height, self.length, self.receive_window_heigth + 1, 0)
 
         self.receive_window.border()
         self.send_window.border()
