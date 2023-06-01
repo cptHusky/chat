@@ -1,6 +1,6 @@
 import asyncio
 from chat_lib import Message, AIOTransport
-from uuid import uuid4
+import sqlite3
 
 CONNECTION_ERRORS = (
     ConnectionAbortedError,
@@ -11,21 +11,48 @@ HOST = '127.0.0.1'
 PORT = 55555
 
 
+class Connection:
+    def __init__(self):
+        self.id: int = None
+        self.user: str = None
+        self.is_connected: bool = None
+        # self.host: str = None
+        # self.port: int = None
+        self.public_key: bytes = None
+
+
 class Server(AIOTransport):
 
     def __init__(self, host: str, port: int) -> None:
         super().__init__(host, port)
-        self.connections: dict[uuid4.UUID, (asyncio.StreamWriter, bool, str)] = {}
+        self.writers: dict[int, asyncio.streams.StreamWriter] = {}
+
+        self.db = sqlite3.connect('server.db')
+        self.cursor = self.db.cursor()
+
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS connections(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user TEXT,                              # буду наполнять после разработки сообщения логина
+                is_connected BOOL,
+                public_key BLOB                         # буду наполнять после разработки сообщения логина
+            );
+        ''')
+
+        self.db.commit()
 
     async def send_to_all_connections(self, msg: str) -> None:
         print(f'[MSG_SEND] Message ({msg}) is being sent to:')
+        self.cursor.execute('''SELECT id FROM connections WHERE is_connected = True''')
+        active_connections_id = self.cursor.fetchall()
 
-        for connection_id in self.connections:
+        for connection_id in active_connections_id:
+            connection_id = connection_id[0]
+            connection = self.writers[connection_id]
+            await self.send_async(connection, msg)
+            client_host, client_port = connection.get_extra_info('peername')
 
-            if self.connections[connection_id][1]:
-                await self.send_async(self.connections[connection_id][0], msg)
-                client_host, client_port = self.connections[connection_id][0].get_extra_info('peername')
-                print(f'| {connection_id} | {client_host}:{client_port} |')
+            print(f'| {connection_id} | {client_host}:{client_port} |')
 
     async def handle_single_client(
             self,
@@ -33,14 +60,26 @@ class Server(AIOTransport):
             writer: asyncio.streams.StreamWriter
     ) -> None:
 
-        connection_id = uuid4()
-        self.connections[connection_id] = [writer, bool, str]
-        self.connections[connection_id][1] = True
-        number_active_connections = len([connection[1] for connection in self.connections.values() if connection[1]])
+        connection = Connection()
+        self.cursor.execute('''SELECT MAX(id) FROM connections''')
+
+        try:
+            connection.id = self.cursor.fetchone()[0] + 1
+        except TypeError:
+            connection.id = 1
+
+        self.writers[connection.id] = writer
+        connection.is_connected = True
+
+        self.cursor.execute(f'''
+        INSERT INTO connections(is_connected) 
+        VALUES ({connection.is_connected});
+        ''')
+        self.db.commit()
 
         host, port = writer.get_extra_info('peername')
-        print(f'[CON_STAT] Connection accepted from: {host}:{port}, assigned ID:\n{connection_id}')
-        print(f'[CON_STAT] Active connections: {number_active_connections}\nConnections list:')
+        print(f'[CON_STAT] Connection accepted from: {host}:{port}, assigned ID:\n{connection.id}')
+        print(f'[CON_STAT] Active connections: {self.get_number_active_connections()}\nConnections list:')
 
         # в счастливом будущем, где у клиента будет сообщение логина, 'Someone' станет {username}
         username, text = 'Server', 'Someone has entered the chat'
@@ -60,16 +99,31 @@ class Server(AIOTransport):
                 print('[MSG_SEND] Sending end.')
 
             except CONNECTION_ERRORS:
-                self.connections[connection_id][1] = False
-                number_active_connections =\
-                    len([connection[1] for connection in self.connections.values() if connection[1]])
-                print(f'[CON_STAT] Active connections: {number_active_connections}')
+                self.cursor.execute(f'''
+                UPDATE connections
+                SET is_connected = False 
+                WHERE id = {connection.id};
+                ''')
+                self.db.commit()
+
+                print(f'[CON_STAT] Active connections: {self.get_number_active_connections()}')
                 break
+
+    def get_number_active_connections(self):
+        self.cursor.execute('''
+            SELECT SUM(CAST(is_connected AS INT))
+            FROM connections
+            WHERE is_connected = 1;
+            ''')
+        number_active_connections = self.cursor.fetchone()[0]
+        if not number_active_connections:
+            number_active_connections = 0
+        return number_active_connections
 
     async def start(self) -> None:
         server_instance = await asyncio.start_server(self.handle_single_client, self.host, self.port)
         print(f'[SRV_STAT] Server started at {self.host}:{self.port}')
-        
+
         async with server_instance:
             await server_instance.serve_forever()
 
