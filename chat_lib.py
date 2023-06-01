@@ -129,7 +129,7 @@ class Message:
             hashes.SHA256()
         )
         print(f'Signature {type(signature)}: {signature}\n')
-        signature_str = str(signature)[2:-1]
+        signature_str = signature.decode('latin1')
         return signature_str
 
     @staticmethod

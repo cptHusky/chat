@@ -119,9 +119,9 @@ class Server(AIOTransport):
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
-        public_key_str = public_key_byted.decode()
+        public_key_str = public_key_byted.decode('latin1')
         print(f'{public_key_str=}')
-        signature_byted = signature.encode()
+        signature_byted = signature.encode('latin1')
         text_byted = text.encode()
         print(f'{public_key=}')
         try:
@@ -138,7 +138,7 @@ class Server(AIOTransport):
         except Exception as exp:
             print(exp)
             print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
-            return True
+            return False
 
 
 if __name__ == '__main__':

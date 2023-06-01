@@ -61,7 +61,7 @@ class Interface:
     def input_message(self) -> str:
         self.send_window.addstr(1, 1, 'Input your message or type "quit":')
         text = self.send_window.getstr(2, 1)
-        return str(text)[2:-1]
+        return text.decode()
 
     def input_result_print(self, condition: str) -> None:
         self.send_window.clear()
@@ -164,7 +164,7 @@ class Client(Interface, AIOTransport):
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
-        public_key_str = public_key_bytes.decode()
+        public_key_str = public_key_bytes.decode('latin1')
         login_str = Message(USERNAME, public_key_str, self.private_key).pack()
         await self.send_async(connection, login_str)
         log_text = f'Login message sent raw:\n{login_str}'
