@@ -15,16 +15,16 @@ class Server(AIOTransport):
 
     def __init__(self, host: str, port: int) -> None:
         super().__init__(host, port)
-        self.connections: dict[uuid4.UUID, asyncio.StreamWriter | None] = {}
+        self.connections: dict[uuid4.UUID, (asyncio.StreamWriter, bool, str)] = {}
 
     async def send_to_all_connections(self, msg: str) -> None:
         print(f'[MSG_SEND] Message ({msg}) is being sent to:')
 
         for connection_id in self.connections:
 
-            if self.connections[connection_id] is not None:
-                await self.send_async(self.connections[connection_id], msg)
-                client_host, client_port = self.connections[connection_id].get_extra_info('peername')
+            if self.connections[connection_id][1]:
+                await self.send_async(self.connections[connection_id][0], msg)
+                client_host, client_port = self.connections[connection_id][0].get_extra_info('peername')
                 print(f'| {connection_id} | {client_host}:{client_port} |')
 
     async def handle_single_client(
@@ -34,8 +34,9 @@ class Server(AIOTransport):
     ) -> None:
 
         connection_id = uuid4()
-        self.connections[connection_id] = writer
-        number_active_connections = len([value for value in self.connections.values() if value is not None])
+        self.connections[connection_id] = [writer, bool, str]
+        self.connections[connection_id][1] = True
+        number_active_connections = len([connection[1] for connection in self.connections.values() if connection[1]])
 
         host, port = writer.get_extra_info('peername')
         print(f'[CON_STAT] Connection accepted from: {host}:{port}, assigned ID:\n{connection_id}')
@@ -59,8 +60,9 @@ class Server(AIOTransport):
                 print('[MSG_SEND] Sending end.')
 
             except CONNECTION_ERRORS:
-                self.connections[connection_id] = None
-                number_active_connections = len([value for value in self.connections.values() if value is not None])
+                self.connections[connection_id][1] = False
+                number_active_connections =\
+                    len([connection[1] for connection in self.connections.values() if connection[1]])
                 print(f'[CON_STAT] Active connections: {number_active_connections}')
                 break
 
