@@ -1,6 +1,10 @@
 import asyncio
-from chat_lib import Message, AIOTransport
+from chat_lib import Message, AIOTransport, Sec, Logger
 from uuid import uuid4
+import os
+
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives import hashes, serialization
 
 CONNECTION_ERRORS = (
     ConnectionAbortedError,
@@ -16,9 +20,28 @@ class Server(AIOTransport):
     def __init__(self, host: str, port: int) -> None:
         super().__init__(host, port)
         self.connections: dict[uuid4.UUID, (asyncio.StreamWriter, bool, str)] = {}
+                                                            # не str, надо править
+
+    async def start(self) -> None:
+        current_directory = os.getcwd()
+        filename = 'server.log'
+        logfile = os.path.join(current_directory, filename)
+        self.log = Logger(logfile)
+        log_text = '---Server has started'
+        self.log.write(log_text)
+        self.private_key, self.public_key = Sec.generate_keys()
+        log_text = 'Key generated'
+        self.log.write(log_text)
+        server_instance = await asyncio.start_server(self.handle_single_client, self.host, self.port)
+        print(f'[SRV_STAT] Server started at {self.host}:{self.port}')
+
+        async with server_instance:
+            await server_instance.serve_forever()
 
     async def send_to_all_connections(self, msg: str) -> None:
         print(f'[MSG_SEND] Message ({msg}) is being sent to:')
+        log_text = f'Sending raw: {msg}'        # доделать чтобы выводить кому отправляет
+        self.log.write(log_text)
 
         for connection_id in self.connections:
 
@@ -32,14 +55,28 @@ class Server(AIOTransport):
             reader: asyncio.streams.StreamReader,
             writer: asyncio.streams.StreamWriter
     ) -> None:
-
+        host, port = writer.get_extra_info('peername')
         connection_id = uuid4()
+        log_text = f'Accepted connection from {host}:{port}, assigned ID: {connection_id}, connection info:\n{writer}'
+        self.log.write(log_text)
         self.connections[connection_id] = [writer, bool, str]
         self.connections[connection_id][1] = True
         number_active_connections = len([connection[1] for connection in self.connections.values() if connection[1]])
+        log_text = f'Connections currently active: {number_active_connections}'
+        self.log.write(log_text)
 
-        host, port = writer.get_extra_info('peername')
         print(f'[CON_STAT] Connection accepted from: {host}:{port}, assigned ID:\n{connection_id}')
+
+        login_str = await self.receive_async(reader)
+        log_text = f'Received login raw:\n{login_str}'
+        self.log.write(log_text)
+        login_msg = Message().unpack(login_str)
+        log_text = f'Received message:\n{login_msg}'
+        self.log.write(log_text)
+        self.connections[connection_id][2] = serialization.load_pem_public_key(login_msg.text.encode())
+        log_text = f'Saved puiblic key:\n{self.connections[connection_id][2]}'
+        self.log.write(log_text)
+
         print(f'[CON_STAT] Active connections: {number_active_connections}\nConnections list:')
 
         # в счастливом будущем, где у клиента будет сообщение логина, 'Someone' станет {username}
@@ -50,10 +87,19 @@ class Server(AIOTransport):
 
             try:
                 inc_str = await self.receive_async(reader)
+                print(f'[RAW_RECV]{inc_str}')
+                log_text = f'Received raw:\n{inc_str}'
+                self.log.write(log_text)
                 inc_msg = Message().unpack(inc_str)
+                log_text = f'Received message:\n{inc_msg}'
+                self.log.write(log_text)
                 print(f'[MSG_RECV] Message received:\n{inc_msg}')
+                username, text, signature = inc_msg.username, inc_msg.text, inc_msg.signature
 
-                username, text = inc_msg.username, inc_msg.text
+                if not self.client_verification(connection_id, signature, text):
+                    self.connections[connection_id][1] = False
+                    self.connections[connection_id][0].close()
+
                 out_str = Message(username, text).pack()
                 await self.send_to_all_connections(out_str)
 
@@ -66,12 +112,33 @@ class Server(AIOTransport):
                 print(f'[CON_STAT] Active connections: {number_active_connections}')
                 break
 
-    async def start(self) -> None:
-        server_instance = await asyncio.start_server(self.handle_single_client, self.host, self.port)
-        print(f'[SRV_STAT] Server started at {self.host}:{self.port}')
-        
-        async with server_instance:
-            await server_instance.serve_forever()
+    def client_verification(self, connection_id, signature: str, text):
+        print(type(signature), '\nAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+        public_key = self.connections[connection_id][2]
+        public_key_byted = public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        public_key_str = public_key_byted.decode('latin1')
+        print(f'{public_key_str=}')
+        signature_byted = signature.encode('latin1')
+        text_byted = text.encode()
+        print(f'{public_key=}')
+        try:
+            public_key.verify(
+                signature_byted,
+                text_byted,
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH
+                ),
+                hashes.SHA256()
+            )
+            return True
+        except Exception as exp:
+            print(exp)
+            print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+            return False
 
 
 if __name__ == '__main__':
