@@ -23,11 +23,11 @@ class Interface:
 
         self.heigth, self.length = stdscr.getmaxyx()
         self.send_window_height = 6
-        self.receive_window_heigth = self.heigth - self.send_window_height
+        self.receive_window_heigth = self.heigth - self.send_window_height - 1
 
         self.greet_bar = curses.newwin(1, self.length, 0, 0)
         self.receive_window = curses.newwin(self.receive_window_heigth, self.length, 1, 0)
-        self.send_window = curses.newwin(self.send_window_height, self.length, self.receive_window_heigth, 0)
+        self.send_window = curses.newwin(self.send_window_height, self.length, self.receive_window_heigth + 1, 0)
 
         self.receive_window.border()
         self.send_window.border()
@@ -91,38 +91,39 @@ class Client(Interface, AIOTransport):
         filename = 'client.log'
         logfile = os.path.join(current_directory, filename)
         self.log = Logger(logfile)
-        log_text = '---Client has started'
+        log_text = '[APP_STAT] Client started'
         self.log.write(log_text)
         self.private_key, self.public_key = Sec.generate_keys()
-        log_text = 'Keys generated'
+        log_text = '[KEY_GENE] Keys generated'
         self.log.write(log_text)
         self.init_interface()
-        log_text = 'Interface started'
+        log_text = '[INT_STAT] Interface started'
         self.log.write(log_text)
         reader, writer = await asyncio.open_connection(HOST, PORT)
-        log_text = f'Connection established at the {HOST}:{PORT}, connection info:\n' \
+        log_text = f'[CON_STAT] Connection established at the {HOST}:{PORT}, connection info:\n' \
                    f'{writer}'
         self.log.write(log_text)
         await self.send_login(writer)
-        log_text = 'Login sent'
+        log_text = '[LOG_SEND] Login sent'
         self.log.write(log_text)
+        self.input_result_print('login_ok')
 
         try:
             receive_task = asyncio.create_task(self.receive_message(reader))
             send_task = asyncio.create_task(self.send_message(writer))
             await asyncio.gather(receive_task, send_task)
-            log_text = 'Receive and sending coroutine has started'
+            log_text = '[APP_STAT]Receive and sending coroutine has started'
             self.log.write(log_text)
 
-        except SystemExit:
-            log_text = 'Disconnected!'
+        except DISCONNECT_ERRORS:
+            log_text = '[APP_STAT] Disconnected!'
             self.log.write(log_text)
-            print('Disconnected!')            
+            sys.exit('Disconnected!')
 
     async def send_message(self, connection: asyncio.StreamWriter) -> None:
         while True:
             out_text = await asyncio.to_thread(self.input_message)
-            log_text = f'Message entered: {out_text}'
+            log_text = f'[MSG_SEND] Message entered: {out_text}'
             self.log.write(log_text)
 
             if out_text == '':
@@ -133,10 +134,10 @@ class Client(Interface, AIOTransport):
                 connection.close()
 
             out_str = Message(USERNAME, out_text, self.private_key).pack()
-            log_text = f'Sending: {out_str}'
+            log_text = f'[MSG_SEND] Sending: {out_str}'
             self.log.write(log_text)
             await self.send_async(connection, out_str)
-            log_text = 'Sent!'
+            log_text = '[MSG_SEND] Sent!'
             self.log.write(log_text)
             self.input_result_print('success')
 
@@ -145,16 +146,16 @@ class Client(Interface, AIOTransport):
 
             try:
                 inc_str = await self.receive_async(connection)
-                log_text = f'Received raw:\n{inc_str}'
+                log_text = f'[MSG_RECV] Received raw:\n{inc_str}'
                 self.log.write(log_text)
 
             except DISCONNECT_ERRORS:
-                log_text = 'Connection error, disconnecting.'
+                log_text = '[APP_STAT] Connection error, disconnected, exit!'
                 self.log.write(log_text)
-                break
+                sys.exit('Disconnected!')
 
             inc_msg = Message().unpack(inc_str)
-            log_text = f'Received message:\n{inc_msg}'
+            log_text = f'[MSG_RECV] Received message:\n{inc_msg}'
             self.log.write(log_text)
 
             self.print_inc_msg_and_roll(str(inc_msg))
@@ -167,7 +168,7 @@ class Client(Interface, AIOTransport):
         public_key_str = public_key_bytes.decode('latin1')
         login_str = Message(USERNAME, public_key_str, self.private_key).pack()
         await self.send_async(connection, login_str)
-        log_text = f'Login message sent raw:\n{login_str}'
+        log_text = f'[LOG_SEND] Login message sent raw:\n{login_str}'
         self.log.write(log_text)
         self.input_result_print('login_ok')
 

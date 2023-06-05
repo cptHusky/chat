@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 import asyncio
-import datetime
 import json
 import time
 import socket
@@ -12,32 +11,14 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 
-class Logger:
-    def __init__(self, file):
-        self.file = file
-
-    def write(self, log):
-        event_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-        max_file_size = 128 * 1024 * 1024  # 128 mb in bytes
-        if os.path.exists(self.file) and os.path.getsize(self.file) > max_file_size:
-            file_name, file_extension = os.path.splitext(self.file)
-            file_number = 1
-            while os.path.exists(f"{file_name}_{file_number}{file_extension}"):
-                file_number += 1
-            new_file = f"{file_name}_{file_number}{file_extension}"
-            self.file = new_file
-
-        with open(self.file, 'a') as f:
-            f.write(f'[{event_time}] {log}\n')
-
 class Protocol(ABC):
 
     @abstractmethod
-    def send(self: socket, msg: str) -> None:
+    def send(self, connection: socket, msg: str) -> None:
         pass
 
     @abstractmethod
-    def receive(self: socket) -> str:
+    def receive(self, connection: socket) -> str:
         pass
 
 
@@ -85,6 +66,7 @@ class Sec:
         public_key = private_key.public_key()
 
         return private_key, public_key
+
 
 class Message:
     def __init__(self, username: str = None, text: str = None, private_key=None) -> None:
@@ -134,7 +116,6 @@ class Message:
 
     @staticmethod
     def unpack(msg: str) -> 'Message':
-        # print(msg)
         parsed_msg_dict = json.loads(msg)
         parsed_msg = Message()
         parsed_msg.text = parsed_msg_dict['text']
@@ -142,3 +123,23 @@ class Message:
         parsed_msg.timestamp = parsed_msg_dict['timestamp']
         parsed_msg.signature = parsed_msg_dict['signature']
         return parsed_msg
+
+
+class Logger:
+    def __init__(self, file):
+        self.file = file
+
+    def write(self, log):
+        event_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        max_file_size = 128 * 1024 * 1024  # 128 mb in bytes
+        if os.path.exists(self.file) and os.path.getsize(self.file) > max_file_size:
+            file_name, file_extension = os.path.splitext(self.file)
+            file_number = 1
+            while os.path.exists(f"{file_name}_{file_number}{file_extension}"):
+                file_number += 1
+            new_file = f"{file_name}_{file_number}{file_extension}"
+            self.file = new_file
+
+        with open(self.file, 'a', encoding='utf-8') as f:
+            # print(f'{log=}\n{type(log)=}')
+            f.write(f'[{event_time}] {log}\n')
